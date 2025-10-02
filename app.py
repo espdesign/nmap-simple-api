@@ -1,14 +1,3 @@
-@app.get("/scanned-ips")
-def get_scanned_ips():
-    ips_path = "/app/logs/nmap_scanned_ips.txt"
-    if not os.path.exists(ips_path):
-        raise HTTPException(status_code=404, detail="Scanned IPs file not found.")
-    try:
-        with open(ips_path, "r") as f:
-            ips = [line.strip() for line in f if line.strip()]
-        return {"scanned_ips": ips}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -44,5 +33,18 @@ def get_logs():
         with open(log_path, "r") as f:
             content = f.read()
         return {"log": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/scanned-ips")
+def get_scanned_ips():
+    ips_path = "/app/logs/nmap_scanned_ips.txt"
+    if not os.path.exists(ips_path):
+        raise HTTPException(status_code=404, detail="Scanned IPs file not found.")
+    try:
+        with open(ips_path, "r") as f:
+            ips = [line.strip() for line in f if line.strip()]
+        return {"scanned_ips": ips}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

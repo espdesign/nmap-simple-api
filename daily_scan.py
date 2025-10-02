@@ -3,7 +3,7 @@ import subprocess
 from datetime import datetime
 
 SCAN_TARGET = "scanme.nmap.org"  # Change as needed
-SCAN_INTERVAL = 240 #24 * 60 * 60  # 24 hours in seconds
+SCAN_INTERVAL = 24 * 60 * 60  # 24 hours in seconds
 RESULTS_FILE = "/app/logs/daily_scan.log"
 
 while True:
@@ -20,4 +20,5 @@ while True:
     except Exception as e:
         with open(RESULTS_FILE, "a") as f:
             f.write(f"\n--- Scan at {now} FAILED ---\n{str(e)}\n")
+    print(f"Scan completed at {now}, next scan in {SCAN_INTERVAL} seconds.")
     time.sleep(SCAN_INTERVAL)
