@@ -1,8 +1,9 @@
 import time
 import subprocess
 from datetime import datetime
+import os
 
-SCAN_TARGET = "scanme.nmap.org"  # Change as needed
+SCAN_TARGET = os.environ.get("SCAN_TARGET", "localhost")  # Default is now localhost
 SCAN_INTERVAL = 24 * 60 * 60  # 24 hours in seconds
 RESULTS_FILE = "/app/logs/daily_scan.log"
 

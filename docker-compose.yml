@@ -7,3 +7,5 @@ services:
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
+    environment:
+      - SCAN_TARGET=localhost
