@@ -1,0 +1,21 @@
+
+--- Scan at 2025-10-02 17:52:57 ---
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-10-02 17:52 UTC
+Nmap scan report for scanme.nmap.org (45.33.32.156)
+Host is up (0.069s latency).
+Other addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f
+Not shown: 996 closed tcp ports (reset)
+PORT      STATE SERVICE
+22/tcp    open  ssh
+80/tcp    open  http
+9929/tcp  open  nping-echo
+31337/tcp open  Elite
+
+Nmap done: 1 IP address (1 host up) scanned in 1.72 seconds
+
+[stderr]
+Failed to resolve "sn".
+Failed to resolve "awk".
+Unable to split netmask from target expression: "/Nmap scan/{gsub(/[()]/,"",$NF); print $NF > "nmap_scanned_ips.txt"}"
+
+--- Scan at 2025-10-02 17:54:23 ---
