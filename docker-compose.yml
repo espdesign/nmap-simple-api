@@ -1,9 +1,11 @@
 services:
   nmap-api:
+    container_name: simple-nmap-api
     build: .
     image: nmap-simple-api
     ports:
       - "5000:5000"
+    user: "1000:1000"
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs

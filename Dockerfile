@@ -13,8 +13,20 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+
+
 # Copy the rest of the application
 COPY . .
+
+# Create a non-root user and group
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Ensure logs directory exists and is owned by the non-root user (after COPY)
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
+
+# Switch to non-root user
+USER appuser
+
 
 # Expose port for FastAPI
 EXPOSE 5000

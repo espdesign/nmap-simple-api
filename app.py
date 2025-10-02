@@ -37,7 +37,7 @@ def get_logs():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/scanned-ips")
+@app.get("/hosts")
 def get_scanned_ips():
     ips_path = "/app/logs/nmap_scanned_ips.txt"
     if not os.path.exists(ips_path):
