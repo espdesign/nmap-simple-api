@@ -1,14 +1,33 @@
 services:
   nmap-api:
-    container_name: nmapi
-    network_mode: host
+    build: .
+    container_name: nmapi-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - nmap_results:/code/app/scan_results
+
+  nmap-scanner:
+    build: .
+    container_name: nmapi-scanner
+    restart: unless-stopped
+    # These settings are crucial for allowing Nmap to scan the host's local network
+    network_mode: "host"
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    build: .
-    image: nmapi
+    # The scanner script needs the environment variables
     environment:
+      - PYTHONUNBUFFERED=1
       - SCAN_TARGET=192.168.1.0/24
       - SCAN_INTERVAL_HOURS=12
-    restart: unless-stopped
-    
+    command: python /code/app/daily_scan.py
+    volumes:
+      - nmap_results:/code/app/scan_results
+
+volumes:
+  nmap_results:
+    # This defines the named volume that both services will share
+
+

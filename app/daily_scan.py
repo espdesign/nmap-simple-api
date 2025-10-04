@@ -3,6 +3,8 @@ import subprocess
 from datetime import datetime
 import os
 import sys
+import json
+import xmltodict  # This script also requires: pip install xmltodict
 
 # --- Configuration ---
 # Get scan target from environment variable, default to 'scanme.nmap.org' for a safe example
@@ -11,98 +13,115 @@ SCAN_TARGET = os.environ.get("SCAN_TARGET", "scanme.nmap.org")
 SCAN_INTERVAL_HOURS = int(os.environ.get("SCAN_INTERVAL_HOURS", 24))
 SCAN_INTERVAL = SCAN_INTERVAL_HOURS * 60 * 60  # Convert hours to seconds
 
-# Use absolute paths for clarity inside a container
-LOG_DIR = "/code/app/logs"
-RESULTS_FILE = os.path.join(LOG_DIR, "daily_scan.log")
-IPS_FILE = os.path.join(LOG_DIR, "nmap_scanned_ips.txt")
+# Use an absolute path for the output directory
+OUTPUT_DIR = "/code/app/scan_results"
 
 
-def ensure_log_dir_exists():
-    """Creates the log directory if it doesn't exist to prevent FileNotFoundError."""
+def ensure_output_dir_exists():
+    """Creates the output directory if it doesn't exist."""
     try:
-        os.makedirs(LOG_DIR, exist_ok=True)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
     except OSError as e:
-        # Cannot create directory, a critical failure. Print to stderr and exit.
-        print(f"FATAL: Could not create log directory {LOG_DIR}: {e}", file=sys.stderr)
-        sys.exit(1)  # Exit the script if we can't create the log dir
+        # A critical failure if we can't create the directory.
+        print(
+            f"FATAL: Could not create output directory {OUTPUT_DIR}: {e}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
-def log_message(message):
-    """Appends a message to the main log file."""
-    ensure_log_dir_exists()
-    with open(RESULTS_FILE, "a") as f:
-        f.write(message)
-
-
-def parse_nmap_output(nmap_stdout):
-    """Parses the output of 'nmap -sn' to find IP addresses."""
-    scanned_ips = []
-    for line in nmap_stdout.splitlines():
-        # Look for the line that reports the target
-        if "Nmap scan report for" in line:
-            # Extract the last word, which is the IP or hostname
-            ip_address = line.split()[-1].strip("()")
-            scanned_ips.append(ip_address)
-    return scanned_ips
+def write_json_file(data, filename):
+    """Writes a Python dictionary to a JSON file."""
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=4)
+    print(f"Scan results saved to {filepath}")
 
 
 # --- Main Loop ---
-print("Starting daily nmap scanner...")
+print("Starting periodic nmap scanner...")
 while True:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ensure_output_dir_exists()
+
+    # Generate a timestamp for the filename (e.g., 2025-10-03_21-35-31)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    now_iso = datetime.utcnow().isoformat() + "Z"  # Use UTC for logs
 
     try:
-        # 1. Ensure log directory exists before we do anything else
-        ensure_log_dir_exists()
+        print(
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Running nmap scan on {SCAN_TARGET}..."
+        )
 
-        print(f"[{now}] Running nmap scan on {SCAN_TARGET}...")
-
-        # 2. Run nmap command safely without shell=True
-        # We capture the output here instead of redirecting it in the shell
-        cmd = ["nmap", "-sn", SCAN_TARGET]
+        # Run nmap with XML output to stdout ('-oX -')
+        # This is more reliable than parsing plain text.
+        cmd = ["nmap", "-oX", "-", SCAN_TARGET]
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=300, check=True
         )
 
-        # 3. Log the raw output
-        log_message(f"\n--- Scan at {now} ---\n")
-        log_message(result.stdout)
-        if result.stderr:
-            log_message(f"\n[stderr]\n{result.stderr}")
+        # Convert Nmap's XML output to a Python dictionary
+        scan_data_dict = xmltodict.parse(result.stdout)
 
-        # 4. Parse the output and save the extracted IPs
-        found_ips = parse_nmap_output(result.stdout)
+        # Structure the final JSON output for successful scans
+        output_data = {
+            "scan_timestamp_utc": now_iso,
+            "scan_target": SCAN_TARGET,
+            "scan_successful": True,
+            "nmap_data": scan_data_dict.get("nmaprun", {}),  # Get the root element
+        }
 
-        # Overwrite the IP list file with the latest results
-        with open(IPS_FILE, "w") as f:
-            if found_ips:
-                f.write("\n".join(found_ips) + "\n")
-            else:
-                f.write("# No hosts found in the latest scan.\n")
-
-        print(f"Scan completed successfully. Found {len(found_ips)} host(s).")
+        # Write the successful scan data to a timestamped JSON file
+        filename = f"scan_{timestamp}.json"
+        write_json_file(output_data, filename)
 
     except subprocess.CalledProcessError as e:
-        # This error is raised when nmap returns a non-zero exit code
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        error_message = (
-            f"\n--- Scan at {now_str} FAILED (nmap error) ---\n"
-            f"Command failed with exit code {e.returncode}\n"
-            f"[stdout]:\n{e.stdout}\n"
-            f"[stderr]:\n{e.stderr}\n"
-        )
-        log_message(error_message)
+        # This error occurs when nmap returns a non-zero exit code.
         print(
-            f"ERROR: nmap command failed. \n {error_message} \n See {RESULTS_FILE} for details.",
+            f"ERROR: nmap command failed with exit code {e.returncode}.",
             file=sys.stderr,
         )
 
+        # --- IMPROVED LOGGING ---
+        # Log the detailed error to the server console for easier debugging
+        error_message = e.stderr.strip() if e.stderr else "No stderr output from Nmap."
+        print(f"  Target: {SCAN_TARGET}", file=sys.stderr)
+        print(f"  Nmap Stderr: {error_message}", file=sys.stderr)
+        # --- END IMPROVED LOGGING ---
+
+        error_details = {
+            "error_type": "NmapExecutionError",
+            "return_code": e.returncode,
+            "stdout": e.stdout,
+            "stderr": e.stderr,
+        }
+
+        output_data = {
+            "scan_timestamp_utc": now_iso,
+            "scan_target": SCAN_TARGET,
+            "scan_successful": False,
+            "error": error_details,
+        }
+
+        # Write the error data to a timestamped JSON file
+        filename = f"scan_{timestamp}_error.json"
+        write_json_file(output_data, filename)
+
     except Exception as e:
-        # Catch any other exceptions (e.g., timeout, permissions)
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        error_message = f"\n--- Scan at {now_str} FAILED (script error) ---\n{str(e)}\n"
-        log_message(error_message)
+        # Catch any other exceptions (e.g., timeout, parsing errors).
         print(f"ERROR: An unexpected error occurred: {e}", file=sys.stderr)
+
+        error_details = {"error_type": "ScriptError", "message": str(e)}
+
+        output_data = {
+            "scan_timestamp_utc": now_iso,
+            "scan_target": SCAN_TARGET,
+            "scan_successful": False,
+            "error": error_details,
+        }
+
+        # Write the error data to a timestamped JSON file
+        filename = f"scan_{timestamp}_error.json"
+        write_json_file(output_data, filename)
 
     print(f"Next scan in {SCAN_INTERVAL_HOURS} hours.")
     time.sleep(SCAN_INTERVAL)

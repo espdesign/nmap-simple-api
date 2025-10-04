@@ -22,4 +22,4 @@ COPY ./app /code/app
 EXPOSE 5000
 
 # Run both the FastAPI app and the daily scan script
-CMD ["/bin/sh", "-c", "python app/daily_scan.py & exec uvicorn app.main:app --host 0.0.0.0 --port 5000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"]
