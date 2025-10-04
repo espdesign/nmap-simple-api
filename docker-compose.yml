@@ -1,13 +1,14 @@
 services:
   nmap-api:
-    container_name: simple-nmap-api
+    container_name: nmapi
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     build: .
-    image: nmap-simple-api
-    ports:
-      - "5000:5000"
-    user: "1000:1000"
-    restart: unless-stopped
-    volumes:
-      - ./logs:/app/logs
+    image: nmapi
     environment:
-      - SCAN_TARGET=localhost
+      - SCAN_TARGET=192.168.1.0/24
+      - SCAN_INTERVAL_HOURS=12
+    restart: unless-stopped
+    

@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import subprocess
@@ -6,12 +5,15 @@ import os
 
 app = FastAPI()
 
+
 class ScanRequest(BaseModel):
     target: str
+
 
 @app.get("/")
 def index():
     return {"message": "Nmap Simple API is running."}
+
 
 @app.post("/scan")
 def scan(request: ScanRequest):
@@ -19,14 +21,17 @@ def scan(request: ScanRequest):
     if not target:
         raise HTTPException(status_code=400, detail="No target specified")
     try:
-        result = subprocess.run(["nmap", "-F", target], capture_output=True, text=True, timeout=30)
+        result = subprocess.run(
+            ["nmap", "-F", target], capture_output=True, text=True, timeout=30
+        )
         return {"output": result.stdout, "error": result.stderr}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/logs")
 def get_logs():
-    log_path = "/app/logs/daily_scan.log"
+    log_path = "/code/app/logs/daily_scan.log"
     if not os.path.exists(log_path):
         raise HTTPException(status_code=404, detail="Log file not found.")
     try:
@@ -39,7 +44,7 @@ def get_logs():
 
 @app.get("/hosts")
 def get_scanned_ips():
-    ips_path = "/app/logs/nmap_scanned_ips.txt"
+    ips_path = "/code/app/logs/nmap_scanned_ips.txt"
     if not os.path.exists(ips_path):
         raise HTTPException(status_code=404, detail="Scanned IPs file not found.")
     try:
