@@ -151,25 +151,20 @@ def get_active_hosts():
 
     try:
         hosts = latest_result["nmap_data"]["hosthint"]
-        
-
-        # for host in hosts:
-        #     status = host.get("status", {}).get("@state", "")
-        #     if status == "up":
-        #         addresses = host.get("address", [])
-        #         ip_address = ""
-        #         mac_address = ""
-        #         for addr in addresses:
-        #             if addr.get("@addrtype") == "ipv4":
-        #                 ip_address = addr.get("@addr", "")
-        #             elif addr.get("@addrtype") == "mac":
-        #                 mac_address = addr.get("@addr", "")
-        #         active_hosts.append({
-        #             "ip_address": ip_address,
-        #             "mac_address": mac_address
-        #         })
-
-        return {"active_hosts": hosts}
+        for host in hosts:
+            # get IP address
+            if "address" in host:
+                host["ip"] = host["address"]["@addr"]
+            # get MAC address if available
+            if "address" in host and isinstance(host["address"], list):
+                for addr in host["address"]:
+                    if addr["@addrtype"] == "mac":
+                        host["mac"] = addr["@addr"]
+            # get hostname if available
+            if "hostnames" in host and "hostname" in host["hostnames"]:
+                host["hostname"] = host["hostnames"]["hostname"]["@name"]
+            
+            return {"active_hosts": hosts}
 
     except Exception as e:
         raise HTTPException(
