@@ -20,7 +20,7 @@ services:
     # The scanner script needs the environment variables
     environment:
       - PYTHONUNBUFFERED=1
-      - SCAN_TARGET=137.37.100.0/24
+      - SCAN_TARGET=192.168.100.0/24
       - SCAN_INTERVAL_HOURS=12
     command: python /code/app/daily_scan.py
     volumes:

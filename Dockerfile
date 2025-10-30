@@ -21,5 +21,5 @@ COPY ./app /code/app
 # Expose port for FastAPI
 EXPOSE 5000
 
-# Run both the FastAPI app and the daily scan script
+# Run the FastAPI app
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"]
