@@ -150,18 +150,78 @@ def get_active_hosts():
     latest_result = get_latest_result()  # Reuse the logic from the other endpoint
 
     try:
-        hosts = latest_result["nmap_data"]["hosthint"]
-        output = []
-        for host in hosts:
-            host_info = {}
-            if "address" in host:
-                host_info["ip"] = host["address"]["@addr"]
-            if "hostnames" in host and "hostname" in host["hostnames"]:
-                host_info["hostname"] = host["hostnames"]["hostname"]["@name"]
-            output.append(host_info)
+        # The saved JSON may wrap nmap output under the key 'nmap_data'
+        if isinstance(latest_result, dict) and "nmap_data" in latest_result:
+            nmap_data = latest_result["nmap_data"]
+        else:
+            nmap_data = latest_result
 
-        
-            return {"active_hosts": output}
+        hosts = nmap_data.get("host", [])
+        # Normalise single-host vs list
+        if isinstance(hosts, dict):
+            hosts = [hosts]
+
+        active_hosts = []
+
+        for h in hosts:
+            # status may be a dict like {'@state': 'up', ...}
+            status = h.get("status") or {}
+            state = None
+            if isinstance(status, dict):
+                state = status.get("@state")
+            elif isinstance(status, str):
+                state = status
+
+            # only include hosts reported as 'up'
+            if state != "up":
+                continue
+
+            # addresses can be a dict or list of dicts
+            addresses = h.get("address", [])
+            if isinstance(addresses, dict):
+                addresses = [addresses]
+
+            ip = None
+            for a in addresses:
+                if not isinstance(a, dict):
+                    continue
+                addrtype = a.get("@addrtype")
+                addr = a.get("@addr")
+                # prefer IPv4 if present
+                if addr and addrtype == "ipv4":
+                    ip = addr
+                    break
+                if addr and ip is None:
+                    ip = addr
+
+            # hostnames block can be None, dict, or contain list/dict under 'hostname'
+            hostnames_list = []
+            hostnames_block = h.get("hostnames")
+            if hostnames_block:
+                hostname_field = hostnames_block.get("hostname")
+                if hostname_field:
+                    if isinstance(hostname_field, list):
+                        for hn in hostname_field:
+                            if isinstance(hn, dict):
+                                name = hn.get("@name") or hn.get("#text")
+                            else:
+                                name = hn
+                            if name:
+                                hostnames_list.append(name)
+                    elif isinstance(hostname_field, dict):
+                        name = hostname_field.get("@name") or hostname_field.get("#text")
+                        if name:
+                            hostnames_list.append(name)
+                    elif isinstance(hostname_field, str):
+                        hostnames_list.append(hostname_field)
+
+            active_hosts.append({
+                "ip": ip,
+                "hostnames": hostnames_list,
+                "status": state,
+            })
+
+        return active_hosts
 
     except Exception as e:
         raise HTTPException(
