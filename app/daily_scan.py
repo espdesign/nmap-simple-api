@@ -54,7 +54,7 @@ while True:
 
         # Run nmap with XML output to stdout ('-oX -')
         # This is more reliable than parsing plain text.
-        cmd = ["nmap", "-sn", "-oX", "-", SCAN_TARGET]
+        cmd = ["nmap", "-oX", "-", SCAN_TARGET]
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=300, check=True
         )

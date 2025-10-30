@@ -141,3 +141,37 @@ def get_specific_result(filename: str):
             return Response(content=f.read(), media_type="application/json")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not read file: {str(e)}")
+
+@app.get("/hosts/active", summary="Get Active Hosts on Network", tags=["Hosts"])
+def get_active_hosts():
+    """
+    Returns a list of hosts currently active on the network.
+    """
+    latest_result = get_latest_result()  # Reuse the logic from the other endpoint
+
+    try:
+        hosts = latest_result.get("nmaprun", {}).get("host", [])
+        active_hosts = []
+
+        for host in hosts:
+            status = host.get("status", {}).get("@state", "")
+            if status == "up":
+                addresses = host.get("address", [])
+                ip_address = ""
+                mac_address = ""
+                for addr in addresses:
+                    if addr.get("@addrtype") == "ipv4":
+                        ip_address = addr.get("@addr", "")
+                    elif addr.get("@addrtype") == "mac":
+                        mac_address = addr.get("@addr", "")
+                active_hosts.append({
+                    "ip_address": ip_address,
+                    "mac_address": mac_address
+                })
+
+        return {"active_hosts": active_hosts}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error processing scan data: {str(e)}"
+        )
