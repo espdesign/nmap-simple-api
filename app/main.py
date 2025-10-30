@@ -150,26 +150,26 @@ def get_active_hosts():
     latest_result = get_latest_result()  # Reuse the logic from the other endpoint
 
     try:
-        hosts = latest_result.get("nmaprun", {}).get("host", [])
-        active_hosts = []
+        hosts = latest_result["nmap_data"]["hosthint"]
+        
 
-        for host in hosts:
-            status = host.get("status", {}).get("@state", "")
-            if status == "up":
-                addresses = host.get("address", [])
-                ip_address = ""
-                mac_address = ""
-                for addr in addresses:
-                    if addr.get("@addrtype") == "ipv4":
-                        ip_address = addr.get("@addr", "")
-                    elif addr.get("@addrtype") == "mac":
-                        mac_address = addr.get("@addr", "")
-                active_hosts.append({
-                    "ip_address": ip_address,
-                    "mac_address": mac_address
-                })
+        # for host in hosts:
+        #     status = host.get("status", {}).get("@state", "")
+        #     if status == "up":
+        #         addresses = host.get("address", [])
+        #         ip_address = ""
+        #         mac_address = ""
+        #         for addr in addresses:
+        #             if addr.get("@addrtype") == "ipv4":
+        #                 ip_address = addr.get("@addr", "")
+        #             elif addr.get("@addrtype") == "mac":
+        #                 mac_address = addr.get("@addr", "")
+        #         active_hosts.append({
+        #             "ip_address": ip_address,
+        #             "mac_address": mac_address
+        #         })
 
-        return {"active_hosts": active_hosts}
+        return {"active_hosts": hosts}
 
     except Exception as e:
         raise HTTPException(
